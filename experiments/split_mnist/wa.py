@@ -1,36 +1,39 @@
 import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD
+from torch.optim import Adam
 from avalanche.evaluation import metrics as metrics
-from models import MLP
+from models import MultiHeadMLP, MLP, WeightAveragingPlugin
 from experiments.utils import set_seed, create_default_args
 
 
-def ewc_pmnist(override_args=None):
-
+def wa_smnist(override_args=None):
+    """
+    "Continual Learning Through Synaptic Intelligence" by Zenke et. al. (2017).
+    http://proceedings.mlr.press/v70/zenke17a.html
+    """
     args = create_default_args({'cuda': 1,
                                 'epochs': 10,
                                 'learning_rate': 0.001,
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'seed': 0,
-                                'dropout': 0,
-                                'ewc_lambda': 1,
-                                'ewc_mode': 'separate',
-                                'ewc_decay': None,
                                 'hidden_size': 1000,
                                 'hidden_layers': 2,
                                 'no_experiences': 10,
-                                'log_path': './logs/p_mnist/ewc/'}, override_args)
+                                'task-incremental': False,
+                                'log_path': './logs/s_mnist/wa/'}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
 
-    benchmark = avl.benchmarks.PermutedMNIST(args.no_experiences)
-    model = MLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers,
-                drop_rate=args.dropout)
+    benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=args.task_incremental,
+                                          fixed_class_order=list(range(10)))
+
+    model = MultiHeadMLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers) if args.task_incremental \
+        else MLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers)
+
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -46,13 +49,11 @@ def ewc_pmnist(override_args=None):
         metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
-    cl_strategy = avl.training.EWC(
-        model, SGD(model.parameters(), lr=args.learning_rate), criterion,
-        ewc_lambda=args.ewc_lambda, mode=args.ewc_mode, decay_factor=args.ewc_decay,
+    cl_strategy = avl.training.Naive(
+        model, Adam(model.parameters(), lr=args.learning_rate), criterion,
         train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size,
-        device=device, evaluator=evaluation_plugin)
+        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin()])
 
-    result = None
     for experience in benchmark.train_stream:
         cl_strategy.train(experience)
         result = cl_strategy.eval(benchmark.test_stream)
@@ -61,5 +62,5 @@ def ewc_pmnist(override_args=None):
 
 
 if __name__ == '__main__':
-    res = ewc_pmnist()
+    res = wa_smnist()
     print(res)

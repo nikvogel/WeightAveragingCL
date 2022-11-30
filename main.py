@@ -5,15 +5,15 @@ You can find all the parameters used by the experiment in the source file of the
 """
 
 # select the experiment
-import time
-from experiments.permuted_mnist import wa_pmnist
+from experiments.permuted_mnist import naive_pmnist, wa_pmnist, ewc_pmnist, cumulative_pmnist
+from experiments.split_mnist import naive_smnist, wa_smnist, cumulative_smnist
 
 
-start = time.time()
-print('Start')
-#naive_pmnist()
 
-wa_pmnist()
+# naive_pmnist()
 
-end = time.time()
-print(f'Experiment took: {end - start}s')
+# wa_pmnist()
+
+# ewc_pmnist()
+
+cumulative_pmnist()

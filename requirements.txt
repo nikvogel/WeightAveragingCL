@@ -50,10 +50,6 @@ h5py==3.7.0
 higher==0.2.1
 idna==3.4
 importlib-metadata==4.11.3
-ipykernel==6.15.2
-ipython==8.6.0
-ipython-genutils==0.2.0
-ipywidgets==7.6.5
 jedi==0.18.1
 Jinja2==3.1.2
 joblib==1.2.0

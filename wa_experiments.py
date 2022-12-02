@@ -19,7 +19,7 @@ for no_experience in no_experiences:
                                           'hidden_layers': hidden_layer,
                                           'no_experiences': 10,
                                           'weighting_method': weighting_method,
-                                          'log_path': f'./logs/wa_exp_pmnist/ex{no_experience}_ep{epoch}_lr'
-                                                      f'{learning_rate}_hs{hidden_size}_hl{hidden_layer}'
+                                          'log_path': f'./logs/wa_exp_pmnist/ex{no_experience}_ep{epoch}_lr'\
+                                                      f'{learning_rate}_hs{hidden_size}_hl{hidden_layer}'\
                                                       f'_{weighting_method}'}
                         wa_pmnist(overwrite_dict)

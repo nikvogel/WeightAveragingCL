@@ -98,7 +98,7 @@ python-dateutil==2.8.2
 pytorchcv
 rsa==4.7.2
 scikit-learn
-scipy=
+scipy
 stack-data
 tenacity
 tensorboard

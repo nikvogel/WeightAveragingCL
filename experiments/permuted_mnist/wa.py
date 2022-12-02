@@ -21,13 +21,14 @@ def wa_pmnist(override_args=None):
                                 'hidden_size': 1000,
                                 'hidden_layers': 2,
                                 'no_experiences': 10,
-                                'log_path': './logs/p_mnist/wa/'}, override_args)
+                                'log_path': './logs/p_mnist/wa/',
+                                'weighting_method': 'average'}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and args.cuda >= 0
                           else "cpu")
     benchmark = avl.benchmarks.PermutedMNIST(args.no_experiences)
-    model = MLP(hidden_size=args.hidden_size, hidden_layers=2, relu_act=True)
+    model = MLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers, relu_act=True)
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -45,8 +46,8 @@ def wa_pmnist(override_args=None):
 
     cl_strategy = avl.training.Naive(
         model, Adam(model.parameters(), lr=args.learning_rate), criterion,
-        train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size,
-        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin()])
+        train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size, device=device,
+        evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin(weighting_method=args.weighting_method)])
 
     result = None
     for experience in benchmark.train_stream:

@@ -7,10 +7,6 @@ hidden_layers = [1, 2, 5, 10]
 no_experiences = [5, 10, 20]
 weighting_methods = ['average', 'inverted_t', 'inverted_t_adapted']
 
-for no_experience in no_experiences:
-    overwrite_dict = {'no_experiences': no_experience,
-                      'log_path': f'./logs/wa_exp_pmnist/no_experiences/{no_experience}/'}
-    wa_pmnist(overwrite_dict)
 
 for epoch in epochs:
     overwrite_dict = {'epochs': epoch,

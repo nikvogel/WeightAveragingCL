@@ -1,6 +1,6 @@
 avalanche-lib==0.2.1
 matplotlib
-numpy
+numpy==1.22.3
 pandas
 pytorchcv
 scikit-learn

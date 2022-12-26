@@ -15,6 +15,7 @@ def lwf_stinyimagenet(override_args=None):
                                 'learning_rate': 1e-3, 
                                 'train_mb_size': 200, 
                                 'seed': 0,
+                                'log_path': './logs/s_tiny_imagenet/lwf/',
                                 'dataset_root': None}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"

@@ -1,7 +1,8 @@
 import avalanche.models
 from avalanche.models import MultiHeadClassifier, MultiTaskModule, BaseModel
 from torch import nn
-
+import torch
+import torchvision
 
 class MultiHeadMLP(MultiTaskModule):
     def __init__(self, input_size=28 * 28, hidden_size=256, hidden_layers=2,

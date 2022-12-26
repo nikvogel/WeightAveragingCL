@@ -8,21 +8,13 @@ from experiments.utils import set_seed, create_default_args
 
 
 def lwf_stinyimagenet(override_args=None):
-    """
-    "Learning without Forgetting" by Li et. al. (2016).
-    http://arxiv.org/abs/1606.09282
-    Since experimental setup of the paper is quite outdated and not
-    easily reproducible, this experiment is based on
-    "A continual learning survey: Defying forgetting in classification tasks"
-    De Lange et. al. (2021).
-    https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9349197
-
-    We use a VGG network, which leads a lower performance than the one from
-    De Lange et. al. (2021).
-    """
     args = create_default_args({'cuda': 0,
-                                'lwf_alpha': 1, 'lwf_temperature': 2, 'epochs': 70,
-                                'learning_rate': 1e-3, 'train_mb_size': 200, 'seed': None,
+                                'lwf_alpha': 1, 
+                                'lwf_temperature': 2, 
+                                'epochs': 70,
+                                'learning_rate': 1e-3, 
+                                'train_mb_size': 200, 
+                                'seed': 0,
                                 'dataset_root': None}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
@@ -35,11 +27,17 @@ def lwf_stinyimagenet(override_args=None):
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
+    csv_logger = avl.logging.CSVLogger(log_folder=args.log_path + 'csv_log*')
+    text_logger = avl.logging.TextLogger(open(args.log_path + 'log.txt', 'w'))
+    tensorboard_logger = avl.logging.TensorboardLogger(tb_log_dir=args.log_path + 'tensor_log*')
 
     evaluation_plugin = avl.training.plugins.EvaluationPlugin(
         metrics.accuracy_metrics(epoch=True, experience=True, stream=True),
-        loggers=[interactive_logger])
-
+        metrics.loss_metrics(minibatch=True, epoch=True, experience=True, stream=True),
+        metrics.timing_metrics(epoch=True),
+        metrics.forgetting_metrics(experience=True, stream=True),
+        metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
+        loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
     cl_strategy = avl.training.LwF(
         model,
         SGD(model.parameters(), lr=args.learning_rate, momentum=0.9),

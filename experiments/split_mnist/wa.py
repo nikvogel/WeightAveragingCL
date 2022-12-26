@@ -2,6 +2,7 @@ import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import Adam
+from avalanche.models import MTSimpleMLP, SimpleMLP
 from avalanche.evaluation import metrics as metrics
 from models import MultiHeadMLP, MLP, WeightAveragingPlugin
 from experiments.utils import set_seed, create_default_args
@@ -13,7 +14,7 @@ def wa_smnist(override_args=None):
     http://proceedings.mlr.press/v70/zenke17a.html
     """
     args = create_default_args({'cuda': 1,
-                                'epochs': 10,
+                                'epochs': 3,
                                 'learning_rate': 0.001,
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
@@ -21,18 +22,18 @@ def wa_smnist(override_args=None):
                                 'hidden_size': 1000,
                                 'hidden_layers': 2,
                                 'no_experiences': 10,
-                                'task-incremental': False,
+                                'task_incremental': False,
                                 'log_path': './logs/s_mnist/wa/'}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
 
-    benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=args.task_incremental,
-                                          fixed_class_order=list(range(10)))
+    benchmark = avl.benchmarks.classic.SplitMNIST(n_experiences=args.no_experiences, return_task_id=args.task_incremental)
 
-    model = MultiHeadMLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers) if args.task_incremental \
-        else MLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers)
+    #model = MultiHeadMLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers) if args.task_incremental \
+     #   else MLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers)
+    model = SimpleMLP()
 
     criterion = CrossEntropyLoss()
 
@@ -55,6 +56,8 @@ def wa_smnist(override_args=None):
         device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin()])
 
     for experience in benchmark.train_stream:
+        print("Start of experience: ", experience.current_experience)
+        print("Current Classes: ", experience.classes_in_this_experience)
         cl_strategy.train(experience)
         result = cl_strategy.eval(benchmark.test_stream)
 

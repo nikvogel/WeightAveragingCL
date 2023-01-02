@@ -7,19 +7,8 @@ from models import MultiHeadVGGSmall
 from experiments.utils import set_seed, create_default_args
 
 
-def naive_stinyimagenet(override_args=None):
-    """
-    "Learning without Forgetting" by Li et. al. (2016).
-    http://arxiv.org/abs/1606.09282
-    Since experimental setup of the paper is quite outdated and not
-    easily reproducible, this experiment is based on
-    "A continual learning survey: Defying forgetting in classification tasks"
-    De Lange et. al. (2021).
-    https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9349197
+def ewc_stinyimagenet(override_args=None):
 
-    We use a VGG network, which leads a lower performance than the one from
-    De Lange et. al. (2021).
-    """
     args = create_default_args({'cuda': 0,
                                 'epochs': 20,
                                 'layers': 1,
@@ -28,7 +17,7 @@ def naive_stinyimagenet(override_args=None):
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 10,
-                                'log_path': './logs/s_tiny_imagenet/naive/',
+                                'log_path': './logs/s_tiny_imagenet/ewc/',
                                 'seed': 0,
                                 'dataset_root': None}, override_args)
 
@@ -55,7 +44,7 @@ def naive_stinyimagenet(override_args=None):
         metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
-    cl_strategy = avl.training.Naive(
+    cl_strategy = avl.training.EWC(
         model,
         Adam(model.parameters(), lr=args.learning_rate),
         criterion,
@@ -71,5 +60,5 @@ def naive_stinyimagenet(override_args=None):
 
 
 if __name__ == "__main__":
-    res = naive_stinyimagenet()
+    res = ewc_stinyimagenet()
     print(res)

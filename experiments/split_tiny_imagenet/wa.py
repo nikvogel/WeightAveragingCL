@@ -27,7 +27,7 @@ def wa_stinyimagenet(override_args=None):
 
     benchmark = avl.benchmarks.SplitTinyImageNet(
         args.no_experiences, return_task_id=True, dataset_root=args.dataset_root)
-    model = MultiHeadVGGSmall(n_classes=200, hidden_size=args.hidden_size)
+    model = MultiHeadVGGSmall(n_classes=args.train_mb_size, hidden_size=args.hidden_size)
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()

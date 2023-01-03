@@ -65,7 +65,7 @@ class MultiHeadVGGSmall(MultiTaskModule):
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(True),
         )
-        self.classifier = MultiHeadClassifier(in_features=128,
+        self.classifier = MultiHeadClassifier(in_features=hidden_size,
                                               initial_out_features=n_classes)
 
     def forward(self, x, task_labels):

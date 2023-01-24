@@ -1,33 +1,36 @@
 import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import Adam
+from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
-from models import MultiHeadVGGSmall, WeightAveragingPlugin
+from avalanche.models import SimpleMLP, as_multitask, MTSimpleMLP
+from avalanche.benchmarks import SplitCIFAR10
+from models import MLP, MultiHeadMLP, WeightAveragingPlugin
 from experiments.utils import set_seed, create_default_args
+from avalanche.training.plugins.early_stopping import EarlyStoppingPlugin
 
+def wa_s_cifar(override_args=None):
 
-def wa_stinyimagenet(override_args=None):
     args = create_default_args({'cuda': 0,
-                                'epochs': 20,
-                                'layers': 1,
-                                'hidden_size': 500,
-                                'learning_rate': 0.001,
+                                'epochs': 10,
+                                'learning_rate': 0.001, 
+                                'optimizer': 'SGD', 
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
-                                'no_experiences': 10,
-                                'log_path': './logs/s_tiny_imagenet/wa/',
-                                'seed': 0,
-                                'dataset_root': None}, override_args)
-
+                                'no_experiences': 5,
+                                'task_incremental': False,
+                                'log_path': './logs/split_cifar10_test_stopping/wa/',
+                                'seed': 0}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
 
-    benchmark = avl.benchmarks.SplitTinyImageNet(
-        args.no_experiences, return_task_id=True, dataset_root=args.dataset_root)
-    model = MultiHeadVGGSmall(n_classes=args.train_mb_size, hidden_size=args.hidden_size)
+    benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=True,
+                                          fixed_class_order=list(range(10)))    
+    model = SimpleMLP(input_size=32 * 32 * 3, num_classes=10)
+    model = as_multitask(model, "classifier")
+    benchmark = SplitCIFAR10(n_experiences=5, return_task_id=True)    
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -43,11 +46,15 @@ def wa_stinyimagenet(override_args=None):
         metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
+    if args.optimizer == 'Adam':
+        optimizer = Adam(model.parameters(), lr=args.learning_rate)
+    else:
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
+
+
     cl_strategy = avl.training.Naive(
-        model,
-        Adam(model.parameters(), lr=args.learning_rate),
-        criterion,
-        train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size,
+        model, optimizer, criterion,
+        train_mb_size=args.train_mb_size, train_epochs=args.epochs,
         device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin()])
 
     res = None
@@ -58,6 +65,6 @@ def wa_stinyimagenet(override_args=None):
     return res
 
 
-if __name__ == "__main__":
-    res = wa_stinyimagenet()
+if __name__ == '__main__':
+    res = wa_s_cifar()
     print(res)

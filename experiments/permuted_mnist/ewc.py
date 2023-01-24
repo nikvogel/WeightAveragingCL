@@ -1,7 +1,7 @@
 import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD
+from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
 from models import MLP
 from experiments.utils import set_seed, create_default_args
@@ -12,14 +12,15 @@ def ewc_pmnist(override_args=None):
     args = create_default_args({'cuda': 1,
                                 'epochs': 10,
                                 'learning_rate': 0.001,
+                                'optimizer': 'Adam',
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'seed': 0,
-                                'dropout': 0,
+                                'dropout': 0.2,
                                 'ewc_lambda': 1,
                                 'ewc_mode': 'separate',
                                 'ewc_decay': None,
-                                'hidden_size': 1000,
+                                'hidden_size': 1024,
                                 'hidden_layers': 2,
                                 'no_experiences': 10,
                                 'log_path': './logs/p_mnist/ewc/'}, override_args)
@@ -46,8 +47,14 @@ def ewc_pmnist(override_args=None):
         metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
+    if args.optimizer == 'Adam':
+        optimizer = Adam(model.parameters(), lr=args.learning_rate)
+    else:
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
+
+
     cl_strategy = avl.training.EWC(
-        model, SGD(model.parameters(), lr=args.learning_rate), criterion,
+        model, optimizer, criterion,
         ewc_lambda=args.ewc_lambda, mode=args.ewc_mode, decay_factor=args.ewc_decay,
         train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size,
         device=device, evaluator=evaluation_plugin)

@@ -1,32 +1,35 @@
-import json
-
 import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import Adam
+from torch.optim import Adam, SGD
 from avalanche.evaluation import metrics as metrics
-from models import MLP
+from models import MultiHeadVGGSmall
 from experiments.utils import set_seed, create_default_args
 
 
-def cumulative_pmnist_update(override_args=None):
+def ewc_stinyimagenet(override_args=None):
 
     args = create_default_args({'cuda': 0,
-                                'epochs': 5,
+                                'epochs': 20,
+                                'ewc_lambda': 1,
+                                'hidden_size': 512,
                                 'learning_rate': 0.001,
+                                'optimizer': 'Adam',
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
-                                'seed': 0,
-                                'hidden_size': 500,
-                                'hidden_layers': 1,
                                 'no_experiences': 10,
-                                'log_path': './logs/p_mnist_update/cumulative/'}, override_args)
+                                'log_path': './logs/s_tiny_imagenet/ewc/',
+                                'seed': 0,
+                                'dataset_root': None}, override_args)
+
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
-                             args.cuda >= 0 else "cpu")
-    benchmark = avl.benchmarks.PermutedMNIST(args.no_experiences)
-    model = MLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers, relu_act=True)
+                          args.cuda >= 0 else "cpu")
+
+    benchmark = avl.benchmarks.SplitTinyImageNet(
+        args.no_experiences, return_task_id=True, dataset_root=args.dataset_root)
+    model = MultiHeadVGGSmall(n_classes=args.train_mb_size, hidden_size=args.hidden_size)
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -42,22 +45,26 @@ def cumulative_pmnist_update(override_args=None):
         metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
-    cl_strategy = avl.training.Cumulative(
-        model, Adam(model.parameters(), lr=args.learning_rate), criterion,
-        train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size,
-        device=device, evaluator=evaluation_plugin)
+    if args.optimizer == 'Adam':
+        optimizer = Adam(model.parameters(), lr=args.learning_rate)
+    else:
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
 
-    result = None
+    cl_strategy = avl.training.EWC(
+        model,
+        optimizer,
+        criterion,
+        train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size,
+        device=device, evaluator=evaluation_plugin, ewc_lambda=args.ewc_lambda)
+
+    res = None
     for experience in benchmark.train_stream:
         cl_strategy.train(experience)
-        result = cl_strategy.eval(benchmark.test_stream)
+        res = cl_strategy.eval(benchmark.test_stream)
 
-    #with open(args.log_path + 'result.json', 'w') as fp:
-     #   json.dump(result, fp)
-
-    return result
+    return res
 
 
-if __name__ == '__main__':
-    res = cumulative_pmnist_update()
+if __name__ == "__main__":
+    res = ewc_stinyimagenet()
     print(res)

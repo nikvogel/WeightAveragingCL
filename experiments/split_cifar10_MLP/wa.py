@@ -1,39 +1,37 @@
 import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import Adam
+from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
-from models import MultiHeadMLP, MLP
+from avalanche.models import MLP, SimpleMLP, as_multitask, MTSimpleMLP
+from avalanche.benchmarks import SplitCIFAR10
+from models import MLP, MultiHeadMLP, WeightAveragingPlugin
 from experiments.utils import set_seed, create_default_args
+from avalanche.training.plugins.early_stopping import EarlyStoppingPlugin
 
+def wa_s_cifar_complex(override_args=None):
 
-def cumulative_smnist(override_args=None):
-    """
-    "Continual Learning Through Synaptic Intelligence" by Zenke et. al. (2017).
-    http://proceedings.mlr.press/v70/zenke17a.html
-    """
-    args = create_default_args({'cuda': 1,
+    args = create_default_args({'cuda': 0,
                                 'epochs': 10,
+                                'layers': 2, 
+                                'hidden_size': 1024,
                                 'learning_rate': 0.001,
+                                'optimizer': 'Adam',
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
-                                'seed': 0,
-                                'hidden_size': 1000,
-                                'hidden_layers': 2,
-                                'no_experiences': 10,
-                                'task-incremental': False,
-                                'log_path': './logs/s_mnist/cumulative/'}, override_args)
+                                'no_experiences': 5,
+                                'task_incremental': True,
+                                'log_path': './logs/split_cifar10_complex/wa/',
+                                'wa_alpha': 1,
+                                'seed': 0}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
-
+    model = MLP(hidden_size = args.hidden_size, hidden_layers= args.layers, input_size=32 * 32 * 3)
+    model = as_multitask(model, "classifier")
     benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=args.task_incremental,
                                           fixed_class_order=list(range(10)))
-
-    model = MultiHeadMLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers) if args.task_incremental \
-        else MLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers)
-
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -49,18 +47,25 @@ def cumulative_smnist(override_args=None):
         metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
-    cl_strategy = avl.training.Cumulative(
-        model, Adam(model.parameters(), lr=args.learning_rate), criterion,
-        train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size,
-        device=device, evaluator=evaluation_plugin)
+    if args.optimizer == 'Adam':
+        optimizer = Adam(model.parameters(), lr=args.learning_rate)
+    else:
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
 
+        
+    cl_strategy = avl.training.Naive(
+        model, optimizer, criterion,
+        train_mb_size=args.train_mb_size, train_epochs=args.epochs,
+        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin(args.wa_alpha)])
+
+    res = None
     for experience in benchmark.train_stream:
         cl_strategy.train(experience)
-        result = cl_strategy.eval(benchmark.test_stream)
+        res = cl_strategy.eval(benchmark.test_stream)
 
-    return result
+    return res
 
 
 if __name__ == '__main__':
-    res = cumulative_smnist()
+    res = wa_s_cifar_complex()
     print(res)

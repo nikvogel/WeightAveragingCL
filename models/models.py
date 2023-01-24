@@ -131,4 +131,62 @@ class MLP_gss(nn.Module):
         return self.net(x)
 
 
-__all__ = ['MultiHeadMLP', 'MLP', 'SI_CNN', 'MLP_gss']
+class CNN(nn.Module):
+    def __init__(self, N, num_classes):
+        super(CNN, self).__init__()
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(3, N, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(N, 2*N, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(2*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(2*N, 4*N, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(4*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.classifier = nn.Sequential(nn.Linear(4*N, num_classes))
+        
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+        return x
+
+class CNN_Single(nn.Module):
+    def __init__(self, N, num_classes):
+        super(CNN_Single, self).__init__()
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(1, N, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(N, 2*N, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(2*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(2*N, 4*N, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(4*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.classifier = nn.Sequential(nn.Linear(4*N, num_classes))
+        
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+        return x
+
+
+
+__all__ = ['MultiHeadMLP', 'MLP', 'SI_CNN', 'MLP_gss', 'CNN', 'CNN_Single']

@@ -1,36 +1,37 @@
 import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD
+from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
-from models import MLP
+from avalanche.models import SimpleMLP, as_multitask, MTSimpleMLP
+from avalanche.benchmarks import SplitCIFAR10
+from models import MLP, MultiHeadMLP, WeightAveragingPlugin, CNN
 from experiments.utils import set_seed, create_default_args
+from avalanche.training.plugins.early_stopping import EarlyStoppingPlugin
 
-
-def ewc_pmnist_update(override_args=None):
+def wa_s_cifar(override_args=None):
 
     args = create_default_args({'cuda': 0,
-                                'epochs': 5,
+                                'epochs': 10,
+                                'N': 8,
                                 'learning_rate': 0.001,
+                                'optimizer': 'SGD', 
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
-                                'seed': 0,
-                                'dropout': 0,
-                                'ewc_lambda': 1,
-                                'ewc_mode': 'separate',
-                                'ewc_decay': None,
-                                'hidden_size': 500,
-                                'hidden_layers': 1,
-                                'no_experiences': 10,
-                                'log_path': './logs/p_mnist_update/ewc/'}, override_args)
+                                'no_experiences': 5,
+                                'task_incremental': False,
+                                'log_path': './logs/split_cifar10_cnn/wa/',
+                                'seed': 0}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
 
-    benchmark = avl.benchmarks.PermutedMNIST(args.no_experiences)
-    model = MLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers,
-                drop_rate=args.dropout)
+    benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=True,
+                                          fixed_class_order=list(range(10)))    
+    model = CNN(N=args.N, num_classes=10)
+    model = as_multitask(model, "classifier")
+    benchmark = SplitCIFAR10(n_experiences=5, return_task_id=True)    
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -46,20 +47,25 @@ def ewc_pmnist_update(override_args=None):
         metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
-    cl_strategy = avl.training.EWC(
-        model, SGD(model.parameters(), lr=args.learning_rate), criterion,
-        ewc_lambda=args.ewc_lambda, mode=args.ewc_mode, decay_factor=args.ewc_decay,
-        train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size,
-        device=device, evaluator=evaluation_plugin)
+    if args.optimizer == 'Adam':
+        optimizer = Adam(model.parameters(), lr=args.learning_rate)
+    else:
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
 
-    result = None
+
+    cl_strategy = avl.training.Naive(
+        model, optimizer, criterion,
+        train_mb_size=args.train_mb_size, train_epochs=args.epochs,
+        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin()])
+
+    res = None
     for experience in benchmark.train_stream:
         cl_strategy.train(experience)
-        result = cl_strategy.eval(benchmark.test_stream)
+        res = cl_strategy.eval(benchmark.test_stream)
 
-    return result
+    return res
 
 
 if __name__ == '__main__':
-    res = ewc_pmnist_update()
+    res = wa_s_cifar()
     print(res)

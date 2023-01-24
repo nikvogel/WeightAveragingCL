@@ -3,31 +3,38 @@ import json
 import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD
+from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
-from avalanche.models import SimpleCNN
+from avalanche.models import SimpleMLP, SimpleCNN
 from experiments.utils import set_seed, create_default_args
-from models import WeightAveragingPlugin
+from models import WeightAveragingPlugin, CNN, CNN_Single
 
 
-def pmnist_simple_cnn(override_args=None):
+def wa_pmnist_simple_CNN(override_args=None):
 
     args = create_default_args({'cuda': 1,
-                                'epochs': 10,
+                                'epochs': 2,
                                 'learning_rate': 0.01,
+                                'optimizer': 'Adam',
                                 'train_mb_size': 128,
                                 'eval_mb_size': 128,
                                 'seed': 0,
                                 'no_experiences': 10,
-                                'weighting_method': 'average',
-                                'log_path': './logs/p_mnist_architecture/wa_cnn_simple/'}, override_args)
+                                'wa_alpha': 1,
+                                'log_path': './logs/p_mnist_simple/wa_CNNx2/'}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and args.cuda >= 0
                           else "cpu")
     benchmark = avl.benchmarks.PermutedMNIST(args.no_experiences)
-    model = SimpleCNN(args.no_experiences)
-    optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
+    model = CNN_Single(N = 2, num_classes = args.no_experiences)
+
+    if args.optimizer == 'Adam':
+        optimizer = Adam(model.parameters(), lr=args.learning_rate)
+    else:
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
+
+    
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -44,8 +51,8 @@ def pmnist_simple_cnn(override_args=None):
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
     cl_strategy = avl.training.Naive(
-        model, optimizer, criterion, train_mb_size=args.train_mb_size,
-        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin(args.weighting_method)])
+        model, optimizer, criterion, train_mb_size=args.train_mb_size, train_epochs=args.epochs,
+        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin(args.wa_alpha)])
 
     result = None
     for experience in benchmark.train_stream:
@@ -59,5 +66,5 @@ def pmnist_simple_cnn(override_args=None):
 
 
 if __name__ == '__main__':
-    res = pmnist_simple_cnn()
+    res = wa_pmnist_simple_CNN()
     print(res)

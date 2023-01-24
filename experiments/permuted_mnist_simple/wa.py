@@ -13,13 +13,13 @@ from models import WeightAveragingPlugin
 def wa_pmnist_simple(override_args=None):
 
     args = create_default_args({'cuda': 1,
-                                'epochs': 10,
+                                'epochs': 2,
                                 'learning_rate': 0.01,
                                 'train_mb_size': 128,
                                 'eval_mb_size': 128,
                                 'seed': 0,
                                 'no_experiences': 10,
-                                'weighting_method': 'average',
+                                'wa_alpha': 1,
                                 'log_path': './logs/p_mnist_simple/wa/'}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
@@ -44,8 +44,8 @@ def wa_pmnist_simple(override_args=None):
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
     cl_strategy = avl.training.Naive(
-        model, optimizer, criterion, train_mb_size=args.train_mb_size,
-        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin(args.weighting_method)])
+        model, optimizer, criterion, train_mb_size=args.train_mb_size, train_epochs=args.epochs,
+        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin(alpha=args.wa_alpha)])
 
     result = None
     for experience in benchmark.train_stream:

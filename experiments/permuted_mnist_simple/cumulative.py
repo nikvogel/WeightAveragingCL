@@ -4,7 +4,7 @@ import avalanche as avl
 import torch
 from avalanche.models import SimpleMLP
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD
+from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
 from models import MLP
 from experiments.utils import set_seed, create_default_args
@@ -13,8 +13,9 @@ from experiments.utils import set_seed, create_default_args
 def cumulative_pmnist_simple(override_args=None):
 
     args = create_default_args({'cuda': 1,
-                                'epochs': 1,
+                                'epochs': 2,
                                 'learning_rate': 0.01,
+                                'optimizer': 'SGD',
                                 'train_mb_size': 128,
                                 'eval_mb_size': 128,
                                 'seed': 0,
@@ -26,7 +27,6 @@ def cumulative_pmnist_simple(override_args=None):
                              args.cuda >= 0 else "cpu")
     benchmark = avl.benchmarks.PermutedMNIST(args.no_experiences)
     model = SimpleMLP(args.no_experiences)
-    optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -41,6 +41,11 @@ def cumulative_pmnist_simple(override_args=None):
         metrics.forgetting_metrics(experience=True, stream=True),
         metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
+    
+    if args.optimizer == 'Adam':
+        optimizer = Adam(model.parameters(), lr=args.learning_rate)
+    else:
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
 
     cl_strategy = avl.training.Cumulative(
         model, optimizer, criterion, train_mb_size=args.train_mb_size, train_epochs=args.epochs,

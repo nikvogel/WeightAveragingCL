@@ -12,7 +12,7 @@ from experiments.utils import set_seed, create_default_args
 def ewc_pmnist_simple(override_args=None):
 
     args = create_default_args({'cuda': 1,
-                                'epochs': 10,
+                                'epochs': 2,
                                 'learning_rate': 0.01,
                                 'train_mb_size': 128,
                                 'eval_mb_size': 128,
@@ -44,7 +44,7 @@ def ewc_pmnist_simple(override_args=None):
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
     cl_strategy = avl.training.Naive(
-        model, optimizer, criterion, train_mb_size=args.train_mb_size,
+        model, optimizer, criterion, train_mb_size=args.train_mb_size, train_epochs=args.epochs,
         device=device, evaluator=evaluation_plugin, plugins=[EWCPlugin(ewc_lambda=args.ewc_lambda)])
 
     result = None

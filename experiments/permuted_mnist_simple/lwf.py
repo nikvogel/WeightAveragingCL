@@ -12,7 +12,9 @@ from experiments.utils import set_seed, create_default_args
 
 def lwf_pmnist_simple(override_args=None):
     args = create_default_args({'cuda': 1,
-                                'epochs': 10,
+                                'epochs': 2,
+                                'lwf_alpha': 0.01,
+                                'lwf_temp': 2,
                                 'learning_rate': 0.01,
                                 'train_mb_size': 128,
                                 'eval_mb_size': 128,
@@ -42,8 +44,8 @@ def lwf_pmnist_simple(override_args=None):
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
     cl_strategy = avl.training.LwF(
-        model, optimizer, criterion, train_mb_size=args.train_mb_size,
-        device=device, evaluator=evaluation_plugin, plugins=[], alpha=0.01, temperature=2)
+        model, optimizer, criterion, train_mb_size=args.train_mb_size, train_epochs=args.epochs,
+        device=device, evaluator=evaluation_plugin, plugins=[], alpha=args.lwf_alpha, temperature=args.lwf_temp)
 
     result = None
     for experience in benchmark.train_stream:

@@ -1,38 +1,37 @@
-import json
-
 import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import Adam, SGD
+from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
-from models import MLP
+from avalanche.models import MLP, SimpleMLP, as_multitask, MTSimpleMLP
+from avalanche.benchmarks import SplitCIFAR10
+from models import MLP, MultiHeadMLP, WeightAveragingPlugin
 from experiments.utils import set_seed, create_default_args
-from models import WeightAveragingPlugin
 
+def naive_s_cifar_complex(override_args=None):
 
-def wa_pmnist(override_args=None):
-
-    args = create_default_args({'cuda': 1,
+    args = create_default_args({'cuda': 0,
                                 'epochs': 10,
+                                'layers': 2, 
+                                'hidden_size': 512,
                                 'learning_rate': 0.001,
                                 'optimizer': 'Adam',
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
-                                'seed': 0,
-                                'dropout': 0.2,
-                                'hidden_size': 1024,
-                                'hidden_layers': 2,
-                                'no_experiences': 10,
-                                'log_path': './logs/p_mnist/wa_alpha/',
-                                'wa_alpha': 1}, override_args)
+                                'no_experiences': 5,
+                                'task_incremental': True,
+                                'log_path': './logs/split_cifar10_complex/naive/',
+                                'seed': 0}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
-                          if torch.cuda.is_available() and args.cuda >= 0
-                          else "cpu")
-    benchmark = avl.benchmarks.PermutedMNIST(args.no_experiences)
-    model = MLP(hidden_size=args.hidden_size, hidden_layers=args.hidden_layers,
-                drop_rate=args.dropout)
-    criterion = CrossEntropyLoss()
+                          if torch.cuda.is_available() and
+                          args.cuda >= 0 else "cpu")
+
+    model = MLP(hidden_size = args.hidden_size, hidden_layers= args.layers, input_size=32 * 32 * 3)
+    model = as_multitask(model, "classifier")
+    benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=args.task_incremental,
+                                          fixed_class_order=list(range(10)))
+    criterion = CrossEntropyLoss()   
 
     interactive_logger = avl.logging.InteractiveLogger()
     csv_logger = avl.logging.CSVLogger(log_folder=args.log_path + 'csv_log*')
@@ -52,23 +51,20 @@ def wa_pmnist(override_args=None):
     else:
         optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
 
-
+        
     cl_strategy = avl.training.Naive(
         model, optimizer, criterion,
-        train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size, device=device,
-        evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin(alpha=args.wa_alpha)])
+        train_mb_size=args.train_mb_size, train_epochs=args.epochs,
+        device=device, evaluator=evaluation_plugin, plugins=[])
 
-    result = None
+    res = None
     for experience in benchmark.train_stream:
         cl_strategy.train(experience)
-        result = cl_strategy.eval(benchmark.test_stream)
+        res = cl_strategy.eval(benchmark.test_stream)
 
-    #with open(args.log_path + 'result.json', 'w') as fp:
-     #   json.dump(result, fp)
-
-    return result
+    return res
 
 
 if __name__ == '__main__':
-    res = wa_pmnist()
+    res = naive_s_cifar_complex()
     print(res)

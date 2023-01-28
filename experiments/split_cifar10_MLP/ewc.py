@@ -3,25 +3,25 @@ import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
-from avalanche.models import as_multitask
+from avalanche.models import SimpleMLP, as_multitask
 from avalanche.benchmarks import SplitCIFAR10
-from models import MLP, MultiHeadMLP, WeightAveragingPlugin
+from models import MLP, MultiHeadMLP, WeightAveragingPlugin, CNN
 from experiments.utils import set_seed, create_default_args
 
-def ewc_s_cifar_complex(override_args=None):
+def ewc_s_cifar(override_args=None):
 
     args = create_default_args({'cuda': 0,
                                 'epochs': 10,
-                                'layers': 2, 
+                                'layers': 1,
+                                'hidden_size': 512,
                                 'ewc_lambda': 1,
-                                'hidden_size': 1024,
-                                'learning_rate': 0.001, 
+                                'learning_rate': 0.001,
                                 'optimizer': 'Adam',
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 5,
-                                'task_incremental': True,
-                                'log_path': './logs/split_cifar10_complex/ewc/',
+                                'task_incremental': False,
+                                'log_path': './logs/split_cifar10_mlp/ewc/',
                                 'seed': 0}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
@@ -30,8 +30,7 @@ def ewc_s_cifar_complex(override_args=None):
 
     model = MLP(hidden_size = args.hidden_size, hidden_layers= args.layers, input_size=32 * 32 * 3)
     model = as_multitask(model, "classifier")
-    benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=args.task_incremental,
-                                          fixed_class_order=list(range(10)))
+    benchmark = SplitCIFAR10(n_experiences=5, return_task_id=True)    
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -52,7 +51,6 @@ def ewc_s_cifar_complex(override_args=None):
     else:
         optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
 
-
     cl_strategy = avl.training.EWC(
         model, optimizer, criterion,
         train_mb_size=args.train_mb_size, train_epochs=args.epochs,
@@ -67,5 +65,5 @@ def ewc_s_cifar_complex(override_args=None):
 
 
 if __name__ == '__main__':
-    res = ewc_s_cifar_complex()
+    res = ewc_s_cifar()
     print(res)

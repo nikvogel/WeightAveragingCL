@@ -14,7 +14,8 @@ def ewc_s_cifar(override_args=None):
                                 'epochs': 10,
                                 'N': 8, 
                                 'ewc_lambda': 1,
-                                'learning_rate': 0.001, 
+                                'learning_rate': 0.001,
+                                'optimizer': 'Adam',
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 5,
@@ -44,8 +45,13 @@ def ewc_s_cifar(override_args=None):
         metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
+    if args.optimizer == 'Adam':
+        optimizer = Adam(model.parameters(), lr=args.learning_rate)
+    else:
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
+        
     cl_strategy = avl.training.EWC(
-        model, Adam(model.parameters(), lr=args.learning_rate), criterion,
+        model,optimizer, criterion,
         train_mb_size=args.train_mb_size, train_epochs=args.epochs,
         device=device, evaluator=evaluation_plugin, ewc_lambda=args.ewc_lambda)
 

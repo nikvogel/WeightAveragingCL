@@ -5,7 +5,7 @@ from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
 from avalanche.models import SimpleMLP, as_multitask, MTSimpleMLP
 from avalanche.benchmarks import SplitCIFAR10
-from models import MLP, MultiHeadMLP, WeightAveragingPlugin, CNN
+from models import MLP, MultiHeadMLP, WeightAveragingPlugin, CNN, CNN_6
 from experiments.utils import set_seed, create_default_args
 from avalanche.training.plugins.early_stopping import EarlyStoppingPlugin
 
@@ -15,20 +15,18 @@ def wa_s_cifar(override_args=None):
                                 'epochs': 10,
                                 'N': 8,
                                 'learning_rate': 0.001,
-                                'optimizer': 'SGD', 
+                                'optimizer': 'Adam', 
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 5,
                                 'task_incremental': False,
+                                'wa_alpha': 1,
                                 'log_path': './logs/split_cifar10_cnn/wa/',
                                 'seed': 0}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
-
-    benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=True,
-                                          fixed_class_order=list(range(10)))    
     model = CNN(N=args.N, num_classes=10)
     model = as_multitask(model, "classifier")
     benchmark = SplitCIFAR10(n_experiences=5, return_task_id=True)    
@@ -56,7 +54,7 @@ def wa_s_cifar(override_args=None):
     cl_strategy = avl.training.Naive(
         model, optimizer, criterion,
         train_mb_size=args.train_mb_size, train_epochs=args.epochs,
-        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin()])
+        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin(args.wa_alpha)])
 
     res = None
     for experience in benchmark.train_stream:

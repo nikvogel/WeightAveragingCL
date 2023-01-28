@@ -3,36 +3,31 @@ import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
-from avalanche.models import SimpleMLP, as_multitask, MTSimpleMLP
-from avalanche.benchmarks import SplitCIFAR10
-from models import MLP, MultiHeadMLP, WeightAveragingPlugin, CNN
+from avalanche.models import SimpleMLP, as_multitask, MTSimpleMLP, MultiHeadClassifier
+from models import MLP, MultiHeadMLP, WeightAveragingPlugin
 from experiments.utils import set_seed, create_default_args
-from avalanche.training.plugins.early_stopping import EarlyStoppingPlugin
 
-def wa_s_cifar_CNN(override_args=None):
+def wa_smnist(override_args=None):
 
     args = create_default_args({'cuda': 0,
                                 'epochs': 10,
-                                'N': 8,
-                                'learning_rate': 0.001,
-                                'optimizer': 'SGD', 
+                                'layers': 1, 
+                                'hidden_size': 1000,
+                                'learning_rate': 0.001, 
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 5,
                                 'task_incremental': False,
-                                'log_path': './logs/split_cifar10/wa_CNNx2/',
-                                'wa_alpha': 1,
+                                'wa_alpha': 1, 
+                                'log_path': './logs/s_mnist/wa/',
                                 'seed': 0}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
 
-    benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=args.task_incremental,
-                                          fixed_class_order=list(range(10)))      
-    model = CNN(N = args.N, num_classes=10)
-    model = as_multitask(model, "classifier")
-    benchmark = SplitCIFAR10(n_experiences=5, return_task_id=True)    
+    benchmark = avl.benchmarks.SplitMNIST(5, shuffle=False, return_task_id=True, class_ids_from_zero_in_each_exp=True)
+    model = MultiHeadMLP(hidden_size=args.hidden_size, hidden_layers=args.layers)
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -48,14 +43,8 @@ def wa_s_cifar_CNN(override_args=None):
         metrics.confusion_matrix_metrics(num_classes=benchmark.n_classes, save_image=False, stream=True),
         loggers=[interactive_logger, csv_logger, text_logger, tensorboard_logger])
 
-    if args.optimizer == 'Adam':
-        optimizer = Adam(model.parameters(), lr=args.learning_rate)
-    else:
-        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
-    
-    
     cl_strategy = avl.training.Naive(
-        model, optimizer, criterion,
+        model, Adam(model.parameters(), lr=args.learning_rate), criterion,
         train_mb_size=args.train_mb_size, train_epochs=args.epochs,
         device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin(args.wa_alpha)])
 
@@ -68,5 +57,5 @@ def wa_s_cifar_CNN(override_args=None):
 
 
 if __name__ == '__main__':
-    res = wa_s_cifar_CNN()
+    res = wa_smnist()
     print(res)

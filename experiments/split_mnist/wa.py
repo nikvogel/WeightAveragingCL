@@ -11,13 +11,13 @@ def wa_smnist(override_args=None):
 
     args = create_default_args({'cuda': 0,
                                 'epochs': 10,
-                                'layers': 1, 
-                                'hidden_size': 1000,
+                                'layers': 2, 
+                                'hidden_size': 512,
                                 'learning_rate': 0.001, 
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 5,
-                                'task_incremental': False,
+                                'task_incremental': True,
                                 'wa_alpha': 1, 
                                 'log_path': './logs/s_mnist/wa/',
                                 'seed': 0}, override_args)
@@ -26,7 +26,7 @@ def wa_smnist(override_args=None):
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
 
-    benchmark = avl.benchmarks.SplitMNIST(5, shuffle=False, return_task_id=True, class_ids_from_zero_in_each_exp=True)
+    benchmark = avl.benchmarks.SplitMNIST(5, shuffle=False, return_task_id=args.task_incremental, class_ids_from_zero_in_each_exp=True)
     model = MultiHeadMLP(hidden_size=args.hidden_size, hidden_layers=args.layers)
     criterion = CrossEntropyLoss()
 

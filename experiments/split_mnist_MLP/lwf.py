@@ -3,8 +3,7 @@ import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
-from avalanche.models import SimpleMLP, as_multitask, MTSimpleMLP
-from avalanche.benchmarks import SplitCIFAR10
+from avalanche.models import SimpleMLP, as_multitask, MTSimpleMLP, MultiHeadClassifier
 from models import MLP, MultiHeadMLP
 from experiments.utils import set_seed, create_default_args
 
@@ -23,7 +22,7 @@ class LwFCEPenalty(avl.training.LwF):
         super()._before_backward(**kwargs)
 
 
-def lwf_s_cifar(override_args=None):
+def lwf_smnist(override_args=None):
     """
     "Learning without Forgetting" by Li et. al. (2016).
     http://arxiv.org/abs/1606.09282
@@ -40,22 +39,21 @@ def lwf_s_cifar(override_args=None):
                                 'lwf_temperature': 2, 
                                 'epochs': 10,
                                 'layers': 1, 
-                                'hidden_size': 1000,
+                                'hidden_size': 1024,
                                 'learning_rate': 0.001, 
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 5,
                                 'task_incremental': False,
-                                'log_path': './logs/split_cifar10/lwf/',
+                                'log_path': './logs/s_mnist/lwf/',
                                 'seed': 0}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
 
-    model = SimpleMLP(input_size=32 * 32 * 3, num_classes=10)
-    model = as_multitask(model, "classifier")
-    benchmark = SplitCIFAR10(n_experiences=5, return_task_id=True)    
+    benchmark = avl.benchmarks.SplitMNIST(5, shuffle=False, return_task_id=True, class_ids_from_zero_in_each_exp=True)
+    model = MultiHeadClassifier(in_features=784)    
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -91,5 +89,5 @@ def lwf_s_cifar(override_args=None):
 
 
 if __name__ == '__main__':
-    res = lwf_s_cifar()
+    res = lwf_smnist()
     print(res)

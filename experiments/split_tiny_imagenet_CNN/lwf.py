@@ -19,7 +19,7 @@ def lwf_stinyimagenet(override_args=None):
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 10,
-                                'log_path': './logs/s_tiny_imagenet/lwf/',
+                                'log_path': './logs/s_tiny_imagenet/CNN/lwf/',
                                 'seed': 0,
                                 'dataset_root': None}, override_args)
 
@@ -30,7 +30,7 @@ def lwf_stinyimagenet(override_args=None):
 
     benchmark = avl.benchmarks.SplitTinyImageNet(
         args.no_experiences, return_task_id=True, dataset_root=args.dataset_root)
-    model = CNN(N=args.N, num_classes=args.no_experiences)
+    model = CNN(N=args.N, num_classes=200)
     model = as_multitask(model, "classifier")
     criterion = CrossEntropyLoss()
 

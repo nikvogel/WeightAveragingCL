@@ -16,7 +16,7 @@ def wa_stinyimagenet(override_args=None):
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 10,
-                                'log_path': './logs/s_tiny_imagenet/wa/',
+                                'log_path': './logs/s_tiny_imagenet_vgg/wa/',
                                 'seed': 0,
                                 'wa_alpha': 1,
                                 'dataset_root': None}, override_args)
@@ -47,7 +47,7 @@ def wa_stinyimagenet(override_args=None):
     if args.optimizer == 'Adam':
         optimizer = Adam(model.parameters(), lr=args.learning_rate)
     else:
-        optimizer = SGD(model.parameters(), lr=args.learning_rate)
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
 
     cl_strategy = avl.training.Naive(
         model, optimizer, criterion,

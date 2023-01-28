@@ -3,9 +3,9 @@ import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
-from avalanche.models import MLP, SimpleMLP, as_multitask, MTSimpleMLP
+from avalanche.models import SimpleMLP, as_multitask, MTSimpleMLP
 from avalanche.benchmarks import SplitCIFAR10
-from models import MLP, MultiHeadMLP
+from models import MLP, MultiHeadMLP, CNN
 from experiments.utils import set_seed, create_default_args
 
 
@@ -23,7 +23,7 @@ class LwFCEPenalty(avl.training.LwF):
         super()._before_backward(**kwargs)
 
 
-def lwf_s_cifar_complex(override_args=None):
+def lwf_s_cifar(override_args=None):
     """
     "Learning without Forgetting" by Li et. al. (2016).
     http://arxiv.org/abs/1606.09282
@@ -39,25 +39,23 @@ def lwf_s_cifar_complex(override_args=None):
                                 'lwf_alpha': 1,
                                 'lwf_temperature': 2, 
                                 'epochs': 10,
-                                'layers': 2, 
-                                'hidden_size': 1024,
-                                'learning_rate': 0.001,
+                                'layers': 1,
+                                'hidden_size': 512,
+                                'learning_rate': 0.001, 
                                 'optimizer': 'Adam',
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 5,
-                                'task_incremental': True,
-                                'log_path': './logs/split_cifar10_complex/lwf/',
+                                'task_incremental': False,
+                                'log_path': './logs/split_cifar10_mlp/lwf/',
                                 'seed': 0}, override_args)
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
-
     model = MLP(hidden_size = args.hidden_size, hidden_layers= args.layers, input_size=32 * 32 * 3)
     model = as_multitask(model, "classifier")
-    benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=args.task_incremental,
-                                          fixed_class_order=list(range(10)))  
+    benchmark = SplitCIFAR10(n_experiences=5, return_task_id=True)    
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -78,9 +76,8 @@ def lwf_s_cifar_complex(override_args=None):
     else:
         optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
 
-        
     cl_strategy = LwFCEPenalty(
-        model, optimizer, criterion,
+        model,optimizer, criterion,
         alpha=args.lwf_alpha, temperature=args.lwf_temperature,
         train_mb_size=args.train_mb_size, train_epochs=args.epochs,
         device=device, evaluator=evaluation_plugin)
@@ -90,9 +87,10 @@ def lwf_s_cifar_complex(override_args=None):
         cl_strategy.train(experience)
         res = cl_strategy.eval(benchmark.test_stream)
 
+
     return res
 
 
 if __name__ == '__main__':
-    res = lwf_s_cifar_complex()
+    res = lwf_s_cifar()
     print(res)

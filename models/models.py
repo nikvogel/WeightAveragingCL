@@ -159,6 +159,94 @@ class CNN(nn.Module):
         x = self.classifier(x)
         return x
 
+class CNN_5(nn.Module):
+    def __init__(self, N, num_classes=200):
+        super(CNN_5, self).__init__()
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(3, N, kernel_size=5, stride=1, padding=2),
+            nn.BatchNorm2d(N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(N, 2*N, kernel_size=5, stride=1, padding=2),
+            nn.BatchNorm2d(2*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(2*N, 4*N, kernel_size=5, stride=1, padding=2),
+            nn.BatchNorm2d(4*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+        self.layer4 = nn.Sequential(
+            nn.Conv2d(4*N, 8*N, kernel_size=5, stride=1, padding=2),
+            nn.BatchNorm2d(8*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+        self.layer5 = nn.Sequential(
+            nn.Conv2d(8*N, 16*N, kernel_size=2, stride=2, padding=2),
+            nn.BatchNorm2d(16*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+        self.classifier = nn.Sequential(nn.Linear(16*N, num_classes))
+
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.layer5(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+        return x
+
+
+
+class CNN_6(nn.Module):
+    def __init__(self, N, num_classes):
+        super(CNN_6, self).__init__()
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(3, N, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(N, 2*N, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(2*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(2*N, 4*N, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(4*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer4 = nn.Sequential(
+            nn.Conv2d(4*N, 8*N, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(8*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer5 = nn.Sequential(
+            nn.Conv2d(8*N, 16*N, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(16*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer6 = nn.Sequential(
+            nn.Conv2d(16*N, 32*N, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(32*N),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.classifier = nn.Sequential(nn.Linear(32*N, num_classes))
+
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.layer5(x)
+        x = self.layer6(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+        return x
+
 class CNN_Single(nn.Module):
     def __init__(self, N, num_classes):
         super(CNN_Single, self).__init__()
@@ -189,4 +277,4 @@ class CNN_Single(nn.Module):
 
 
 
-__all__ = ['MultiHeadMLP', 'MLP', 'SI_CNN', 'MLP_gss', 'CNN', 'CNN_Single']
+__all__ = ['MultiHeadMLP', 'MLP', 'SI_CNN', 'MLP_gss', 'CNN', 'CNN_6','CNN_Single', 'CNN_5']

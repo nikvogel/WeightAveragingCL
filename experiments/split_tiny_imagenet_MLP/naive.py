@@ -1,36 +1,48 @@
 import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD, Adam
+from torch.optim import Adam, SGD
 from avalanche.evaluation import metrics as metrics
-from avalanche.models import SimpleMLP, as_multitask, MTSimpleMLP
-from avalanche.benchmarks import SplitCIFAR10
-from models import MLP, MultiHeadMLP, WeightAveragingPlugin
+from models import MultiHeadVGGSmall, MLP
+from avalanche.models import as_multitask
 from experiments.utils import set_seed, create_default_args
-from avalanche.training.plugins.early_stopping import EarlyStoppingPlugin
 
-def wa_s_cifar(override_args=None):
 
+def naive_stinyimagenet(override_args=None):
+    """
+    "Learning without Forgetting" by Li et. al. (2016).
+    http://arxiv.org/abs/1606.09282
+    Since experimental setup of the paper is quite outdated and not
+    easily reproducible, this experiment is based on
+    "A continual learning survey: Defying forgetting in classification tasks"
+    De Lange et. al. (2021).
+    https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9349197
+
+    We use a VGG network, which leads a lower performance than the one from
+    De Lange et. al. (2021).
+    """
     args = create_default_args({'cuda': 0,
-                                'epochs': 10,
-                                'learning_rate': 0.001, 
-                                'optimizer': 'SGD', 
+                                'epochs': 20,
+                                'hidden_size': 512,
+                                'layers': 2,
+                                'learning_rate': 0.001,
+                                'optimizer': 'Adam',
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
-                                'no_experiences': 5,
-                                'task_incremental': False,
-                                'log_path': './logs/split_cifar10_test_stopping/wa/',
-                                'seed': 0}, override_args)
+                                'no_experiences': 10,
+                                'log_path': './logs/s_tiny_imagenet_mlp/naive/',
+                                'seed': 0,
+                                'dataset_root': None}, override_args)
+
     set_seed(args.seed)
     device = torch.device(f"cuda:{args.cuda}"
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
 
-    benchmark = avl.benchmarks.SplitMNIST(5, return_task_id=True,
-                                          fixed_class_order=list(range(10)))    
-    model = SimpleMLP(input_size=32 * 32 * 3, num_classes=10)
+    benchmark = avl.benchmarks.SplitTinyImageNet(
+        args.no_experiences, return_task_id=True, dataset_root=args.dataset_root)
+    model = MLP(input_size=64*64*3, output_size=200, hidden_size=args.hidden_size, hidden_layers=args.layers)
     model = as_multitask(model, "classifier")
-    benchmark = SplitCIFAR10(n_experiences=5, return_task_id=True)    
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -51,11 +63,12 @@ def wa_s_cifar(override_args=None):
     else:
         optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
 
-
     cl_strategy = avl.training.Naive(
-        model, optimizer, criterion,
-        train_mb_size=args.train_mb_size, train_epochs=args.epochs,
-        device=device, evaluator=evaluation_plugin, plugins=[WeightAveragingPlugin()])
+        model,
+        optimizer,
+        criterion,
+        train_mb_size=args.train_mb_size, train_epochs=args.epochs, eval_mb_size=args.eval_mb_size,
+        device=device, evaluator=evaluation_plugin)
 
     res = None
     for experience in benchmark.train_stream:
@@ -65,6 +78,6 @@ def wa_s_cifar(override_args=None):
     return res
 
 
-if __name__ == '__main__':
-    res = wa_s_cifar()
+if __name__ == "__main__":
+    res = naive_stinyimagenet()
     print(res)

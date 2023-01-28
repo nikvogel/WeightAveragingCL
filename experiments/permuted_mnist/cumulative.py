@@ -14,7 +14,7 @@ def cumulative_pmnist(override_args=None):
     args = create_default_args({'cuda': 1,
                                 'epochs': 10,
                                 'learning_rate': 0.001,
-                                'optimizer': 'Adam',
+                                'optimizer': 'SGD',
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'seed': 0,

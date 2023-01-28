@@ -3,20 +3,21 @@ import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import Adam, SGD
 from avalanche.evaluation import metrics as metrics
-from models import MultiHeadVGGSmall, WeightAveragingPlugin
+from avalanche.models import as_multitask
+from models import MultiHeadVGGSmall, WeightAveragingPlugin, CNN, MLP, CNN_5
 from experiments.utils import set_seed, create_default_args
 
 
 def wa_stinyimagenet(override_args=None):
     args = create_default_args({'cuda': 0,
                                 'epochs': 20,
-                                'hidden_size': 512,
+                                'N': 8,
                                 'learning_rate': 0.001,
                                 'optimizer': 'Adam',
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 10,
-                                'log_path': './logs/s_tiny_imagenet/wa/',
+                                'log_path': './logs/s_tiny_imagenet_mlp/wa/',
                                 'seed': 0,
                                 'wa_alpha': 1,
                                 'dataset_root': None}, override_args)
@@ -28,7 +29,8 @@ def wa_stinyimagenet(override_args=None):
 
     benchmark = avl.benchmarks.SplitTinyImageNet(
         args.no_experiences, return_task_id=True, dataset_root=args.dataset_root)
-    model = MultiHeadVGGSmall(n_classes=args.train_mb_size, hidden_size=args.hidden_size)
+    model = CNN_5(N=args.N, num_classes=200)
+    model = as_multitask(model, "classifier")
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
@@ -47,7 +49,7 @@ def wa_stinyimagenet(override_args=None):
     if args.optimizer == 'Adam':
         optimizer = Adam(model.parameters(), lr=args.learning_rate)
     else:
-        optimizer = SGD(model.parameters(), lr=args.learning_rate)
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
 
     cl_strategy = avl.training.Naive(
         model, optimizer, criterion,

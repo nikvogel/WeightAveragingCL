@@ -18,7 +18,7 @@ def ewc_stinyimagenet(override_args=None):
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 10,
-                                'log_path': './logs/s_tiny_imagenet/ewc/',
+                                'log_path': './logs/s_tiny_imagenet_vgg/ewc/',
                                 'seed': 0,
                                 'dataset_root': None}, override_args)
 

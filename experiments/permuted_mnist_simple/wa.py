@@ -3,7 +3,7 @@ import json
 import avalanche as avl
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD
+from torch.optim import SGD, Adam
 from avalanche.evaluation import metrics as metrics
 from avalanche.models import SimpleMLP
 from experiments.utils import set_seed, create_default_args
@@ -13,8 +13,9 @@ from models import WeightAveragingPlugin
 def wa_pmnist_simple(override_args=None):
 
     args = create_default_args({'cuda': 1,
-                                'epochs': 2,
+                                'optimizer': 'SGD',
                                 'learning_rate': 0.01,
+                                'epochs': 2,
                                 'train_mb_size': 128,
                                 'eval_mb_size': 128,
                                 'seed': 0,
@@ -27,7 +28,10 @@ def wa_pmnist_simple(override_args=None):
                           else "cpu")
     benchmark = avl.benchmarks.PermutedMNIST(args.no_experiences)
     model = SimpleMLP(args.no_experiences)
-    optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
+    if args.optimizer == 'Adam':
+        optimizer = Adam(model.parameters(), lr=args.learning_rate)
+    else:
+        optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9)
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()

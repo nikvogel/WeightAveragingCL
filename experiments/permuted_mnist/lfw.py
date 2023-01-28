@@ -14,7 +14,7 @@ def lwf_pmnist(override_args=None):
     args = create_default_args({'cuda': 1,
                                 'epochs': 10,
                                 'learning_rate': 0.001,
-                                'optimizer': 'Adam',
+                                'optimizer': 'SGD',
                                 'lwf_alpha': 0.01,
                                 'lwf_temp': 2,
                                 'train_mb_size': 256,

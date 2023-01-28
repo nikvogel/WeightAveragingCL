@@ -23,28 +23,18 @@ class LwFCEPenalty(avl.training.LwF):
 
 
 def lwf_smnist(override_args=None):
-    """
-    "Learning without Forgetting" by Li et. al. (2016).
-    http://arxiv.org/abs/1606.09282
-    Since experimental setup of the paper is quite outdated and not
-    easily reproducible, this experiment is based on
-    "Three scenarios for continual learning" by van de Ven et. al. (2018).
-    https://arxiv.org/pdf/1904.07734.pdf
-
-    The hyper-parameter alpha controlling the regularization is increased over time, resulting
-    in a regularization of  (1- 1/n_exp_so_far) * L_distillation
-    """
+    
     args = create_default_args({'cuda': 0,
                                 'lwf_alpha': 1,
                                 'lwf_temperature': 2, 
                                 'epochs': 10,
-                                'layers': 1, 
-                                'hidden_size': 1024,
+                                'layers': 2, 
+                                'hidden_size': 512,
                                 'learning_rate': 0.001, 
                                 'train_mb_size': 256,
                                 'eval_mb_size': 128,
                                 'no_experiences': 5,
-                                'task_incremental': False,
+                                'task_incremental': True,
                                 'log_path': './logs/s_mnist/lwf/',
                                 'seed': 0}, override_args)
     set_seed(args.seed)
@@ -52,8 +42,8 @@ def lwf_smnist(override_args=None):
                           if torch.cuda.is_available() and
                           args.cuda >= 0 else "cpu")
 
-    benchmark = avl.benchmarks.SplitMNIST(5, shuffle=False, return_task_id=True, class_ids_from_zero_in_each_exp=True)
-    model = MultiHeadClassifier(in_features=784)    
+    benchmark = avl.benchmarks.SplitMNIST(5, shuffle=False, return_task_id=args.task_incremental, class_ids_from_zero_in_each_exp=True)
+    model = MultiHeadMLP(hidden_size=args.hidden_size, hidden_layers=args.layers)
     criterion = CrossEntropyLoss()
 
     interactive_logger = avl.logging.InteractiveLogger()
